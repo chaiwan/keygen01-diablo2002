@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
       fflags |= OPTS_MASK_VERSION;
       break;
     case ':':
-      if (optopt == 'c') {
+      if (optopt == OPT_GENERATE_SHORT) {
         fflags |= OPTS_MASK_GENERATE;
         fflags_generate |= OPTS_MASK_NOARGS;
       }
@@ -111,7 +111,6 @@ int main(int argc, char *argv[]) {
       dispatch_error(fflags, (char *)sz_exec_error, EXIT_FAILURE);
       break;
   }
-  exit(EXIT_SUCCESS);
   return 0;
 }
 
@@ -121,22 +120,33 @@ int main(int argc, char *argv[]) {
 void dispatch_keygen(unsigned long f, char *s) {
   /* stack */
   char d[KEYGEN_SERIAL_LEN+1], *S, _S[KEYGEN_NAME_LEN+1];
-  size_t slen;
+  size_t slen, nread;
   /* text */
-  d[KEYGEN_SERIAL_LEN] = 0;
-  _S[KEYGEN_NAME_LEN] = 0;
   S = _S;
   slen = strlen(s);
   if (slen < KEYGEN_NAME_LEN) {
-    dispatch_error(f, (char *)sz_exec_error_name_len, EXIT_FAILURE);
+    if (slen == 1 && *s == '-') {
+      nread = fread((void *)d, sizeof(char), KEYGEN_NAME_LEN, stdin);
+      if (nread < 5) {
+        dispatch_error(f, (char *)sz_exec_error_name_len, EXIT_FAILURE);
+      }
+      else {
+        strncat(S, d, KEYGEN_NAME_LEN);
+      }
+    }
+    else {
+      dispatch_error(f, (char *)sz_exec_error_name_len, EXIT_FAILURE);
+    }
   }
   else if (slen > KEYGEN_NAME_LEN) {
     AUTOARRAY_ELEM_TOELEM(_S, s, 0, 0, 5);
-    printf("%s\n", sz_exec_info_truncating_name);
+    /* printf("%s\n", sz_exec_info_truncating_name); */
   }
   else {
     S = s;
   }
+  d[KEYGEN_SERIAL_LEN] = 0;
+  _S[KEYGEN_NAME_LEN] = 0;
   printf("%s: %s\n", S, getserial(d, S));
   exit(EXIT_SUCCESS);
 }
