@@ -4,7 +4,7 @@
 
 /* meta */
 #define PROG_NAME         "keygen"
-#define PROG_VERSION      "1.0"
+#define PROG_VERSION      "1.0a"
 #define PROG_AUTHOR       "chaiwan"
 #define PROG_RELEASE      "2018"
 #define PROG_NAME_LOCALIZED       "Keygen #1"
@@ -77,4 +77,5 @@
 #define OPTS_MASK_NOARGS 1
 #define OPTS_MASK_HELP    1
 #define OPTS_MASK_VERSION 2
-#define OPTS_MASK_GENERATE  3
+#define OPTS_MASK_GENERATE  4
+

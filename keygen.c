@@ -44,7 +44,7 @@
 void dispatch_keygen(unsigned long, char *) __attribute__((noreturn));
 void dispatch_message(unsigned long, char *) __attribute__((noreturn));
 void dispatch_error(unsigned long, char *, unsigned long) __attribute__((noreturn));
-char *getserial(char *d, const char *s);
+char *getserial(char *, const char *);
 
 /*** .data/.const ***/
 const char *sz_usage = PROG_HELP_MESSAGE;
