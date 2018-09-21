@@ -29,17 +29,6 @@
 #include <string.h>
 #include "keygen.h"
 
-/*** macros ***/
-#define AUTOARRAY_ELEM_TOELEM(d, s, j, i, c) {\
-  size_t _iter = 0; \
-  while (_iter < c) { \
-    d[j + _iter] = s[i + _iter]; \
-    ++_iter; \
-  } \
-}
-
-/*** equ ***/
-
 /*** proto ***/
 void dispatch_keygen(unsigned long, char *) __attribute__((noreturn));
 void dispatch_message(unsigned long, char *) __attribute__((noreturn));
@@ -51,9 +40,8 @@ const char *sz_usage = PROG_HELP_MESSAGE;
 const char *sz_about = PROG_VERSION_MESSAGE;
 const char *sz_exec_error = PROG_EXEC_ERROR_MESSAGE;
 const char *sz_exec_error_name_len = SZ_EXEC_ERROR_NAME_LEN;
-#define SZ_OPTSTRING ":" SZ_OPT_GENERATE_SHORT ":" SZ_OPT_HELP_SHORT SZ_OPT_VERSION_SHORT
+#define SZ_OPTSTRING ":" SZ_OPT_GENERATE ":" SZ_OPT_HELP SZ_OPT_VERSION
 const char *sz_optstring = SZ_OPTSTRING;
-const char *sz_exec_info_truncating_name = PROG_EXEC_INFO_MESSAGE_TRUNCATING_NAME;
 
 /*** proc ***/
 /*
@@ -64,22 +52,21 @@ int main(int argc, char *argv[]) {
   int opt_tmp;
   char *sz_arg_generate;
   unsigned long fflags = 0, fflags_generate = 0;
-
   /* text */
   while ((opt_tmp = getopt(argc, argv, sz_optstring)) != -1) {
     switch(opt_tmp) {
-    case OPT_GENERATE_SHORT:
+    case OPT_GENERATE:
       sz_arg_generate = optarg;
       fflags |= OPTS_MASK_GENERATE;
       break;
-    case OPT_HELP_SHORT:
+    case OPT_HELP:
       fflags |= OPTS_MASK_HELP;
       break;
-    case OPT_VERSION_SHORT:
+    case OPT_VERSION:
       fflags |= OPTS_MASK_VERSION;
       break;
     case ':':
-      if (optopt == OPT_GENERATE_SHORT) {
+      if (optopt == OPT_GENERATE) {
         fflags |= OPTS_MASK_GENERATE;
         fflags_generate |= OPTS_MASK_NOARGS;
       }
@@ -96,20 +83,13 @@ int main(int argc, char *argv[]) {
   }
   switch(fflags) {
     case OPTS_MASK_GENERATE:
-      if (fflags_generate & OPTS_MASK_NOARGS) {
-        sz_arg_generate = "-";
-      }
-      dispatch_keygen(fflags, sz_arg_generate);
-      break;
+      dispatch_keygen(fflags_generate, sz_arg_generate);
     case OPTS_MASK_HELP:
       dispatch_message(fflags, (char *)sz_usage);
-      break;
     case OPTS_MASK_VERSION:
       dispatch_message(fflags, (char *)sz_about);
-      break;
     default:
       dispatch_error(fflags, (char *)sz_exec_error, EXIT_FAILURE);
-      break;
   }
   return 0;
 }
@@ -123,24 +103,21 @@ void dispatch_keygen(unsigned long f, char *s) {
   size_t slen, nread;
   /* text */
   S = _S;
-  slen = strlen(s);
-  if (slen < KEYGEN_NAME_LEN) {
-    if (slen == 1 && *s == '-') {
-      nread = fread((void *)d, sizeof(char), KEYGEN_NAME_LEN, stdin);
-      if (nread < 5) {
-        dispatch_error(f, (char *)sz_exec_error_name_len, EXIT_FAILURE);
-      }
-      else {
-        strncat(S, d, KEYGEN_NAME_LEN);
-      }
+  slen = strnlen(s, (KEYGEN_NAME_LEN+1));
+  if (f & OPTS_MASK_NOARGS || (slen == 1 && *s == '-')) {
+    nread = fread((void *)d, sizeof(char), KEYGEN_NAME_LEN, stdin);
+    if (d[KEYGEN_NAME_LEN-1] == '\n' || nread < KEYGEN_NAME_LEN) {
+      dispatch_error(0, (char *)sz_exec_error_name_len, PROG_EXEC_ERROR_CODE_NAME_LEN);
     }
     else {
-      dispatch_error(f, (char *)sz_exec_error_name_len, EXIT_FAILURE);
+      strncat(S, d, KEYGEN_NAME_LEN);
     }
   }
+  else if (slen < KEYGEN_NAME_LEN) {
+    dispatch_error(0, (char *)sz_exec_error_name_len, PROG_EXEC_ERROR_CODE_NAME_LEN);
+  }
   else if (slen > KEYGEN_NAME_LEN) {
-    AUTOARRAY_ELEM_TOELEM(_S, s, 0, 0, 5);
-    /* printf("%s\n", sz_exec_info_truncating_name); */
+    memcpy(_S, s, KEYGEN_NAME_LEN);
   }
   else {
     S = s;
@@ -157,24 +134,23 @@ void dispatch_keygen(unsigned long f, char *s) {
 char *getserial(char *d, const char *s) {
   /* stack */
   char ch;
-  char *seed, _seed[KEYGEN_SERIAL_LEN];
+  char *seed, _seed[KEYGEN_SERIAL_LEN+1];
   unsigned long i, j;
   /* text */
   /* stage: 1 */
   seed = _seed;
-  for (i=0, j=5; j; j--) {
+  for (i=0, j=5; j; i++, j--) {
     ch = s[i];
     ch ^= 0x29;
-    ch += (char)j;
+    ch += j;
     if (ch < 'A' || ch > 'Z') {
         ch = 0x52 + j;
     }
     seed[i] = ch;
-    ++i;
   }
   /* stage: 2 */
   seed += 5;
-  for (i=0, j=5; j; j--) {
+  for (i=0, j=5; j; i++, j--) {
     ch = s[i];
     ch ^= 0x27;
     ch += j + 1;
@@ -182,11 +158,10 @@ char *getserial(char *d, const char *s) {
       ch = 0x4d + j;
     }
     seed[i] = ch;
-    ++i;
   }
   /* stage: 3 */
-  seed = _seed;
-  for (i=0, j=10; j; j--) {
+  seed -= 5;
+  for (i=0, j=10; j; i++, j--) {
     ch = seed[i];
     ch += 5;
     if (ch > 'Z') {
@@ -200,8 +175,8 @@ char *getserial(char *d, const char *s) {
       ch = 0x4b - i;
     }
     d[i] = ch;
-    ++i;
   }
+  _seed[KEYGEN_SERIAL_LEN] = 0;
   return d;
 }
 
@@ -222,6 +197,6 @@ void dispatch_error(unsigned long f, char *s, unsigned long n) {
   /* stack */
   /* text */
   fprintf(stdout, "%s: (%lu)\n", s, n);
-  exit(n);
+  exit(EXIT_FAILURE);
 }
 
